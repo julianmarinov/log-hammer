@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Hammer</title>
+<style>
+:root{
+  --bg:#0f1117;--bg2:#181c27;--bg3:#232840;
+  --acc:#6366f1;--acc2:#818cf8;
+  --tx:#e8eaf0;--tx2:#8b90a8;--tx3:#4b5168;
+  --bdr:#252a3a;
+  --cs:#38bdf8;--ts:#4ade80;--dt:#fb923c;
+  --tag:#a78bfa;--live:#22c55e;
+  --hl:rgba(251,191,36,.22);--hlc:rgba(251,191,36,.5);
+  --mono:'Courier New','Lucida Console',monospace;
+  --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --r:7px;
+}
+[data-theme="light"]{
+  --bg:#f4f5f9;--bg2:#fff;--bg3:#eceef5;
+  --acc:#4f46e5;--acc2:#6366f1;
+  --tx:#111827;--tx2:#6b7280;--tx3:#9ca3af;
+  --bdr:#dde0ec;--cs:#0369a1;--ts:#15803d;--dt:#c2410c;
+  --tag:#7c3aed;--live:#16a34a;
+  --hl:rgba(234,179,8,.28);--hlc:rgba(234,179,8,.55);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);display:flex;flex-direction:column;font-size:14px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--tx3)}
+input[type="time"],input[type="date"]{color-scheme:dark}
+[data-theme="light"] input[type="time"],
+[data-theme="light"] input[type="date"]{color-scheme:light}
+
+.btn{background:var(--bg3);color:var(--tx);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 13px;font-size:.8rem;cursor:pointer;transition:.12s;white-space:nowrap;font-family:var(--sans);line-height:1.4}
+.btn:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.warn{background:#f59e0b1a;color:#f59e0b;border-color:#f59e0b55}
+.btn.warn:hover{background:#f59e0b;color:#000}
+.iBtn{background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);font-size:.95rem;padding:3px 8px;cursor:pointer;line-height:1;transition:.12s}
+.iBtn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* TOP BAR */
+#tb{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--bdr);flex-shrink:0}
+.t-logo{font-weight:800;font-size:1rem;color:var(--acc);white-space:nowrap}
+.t-stn{font-family:var(--mono);color:var(--cs);font-size:.83rem;font-weight:700;white-space:nowrap}
+.t-sep{color:var(--bdr);user-select:none}
+#sbIn{flex:1;min-width:80px;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);padding:5px 10px;font-size:.8rem;outline:none;font-family:var(--sans)}
+#sbIn:focus{border-color:var(--acc)}
+#sbIn::placeholder{color:var(--tx3)}
+.snav{display:flex;align-items:center;gap:3px}
+.snav button{background:var(--bg3);border:1px solid var(--bdr);border-radius:5px;color:var(--tx);width:24px;height:24px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:.1s}
+.snav button:hover{background:var(--acc);color:#fff}
+#sbCnt{font-size:.72rem;color:var(--tx2);min-width:46px;text-align:center}
+
+/* BANNER */
+#mBanner{display:none;background:#f59e0b12;border-bottom:1px solid #f59e0b33;padding:6px 16px;font-size:.78rem;color:#f59e0b;align-items:center;gap:10px;flex-shrink:0}
+#mBanner.show{display:flex}
+#mBanner span{flex:1}
+
+/* LAYOUT */
+#layout{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+#side{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden}
+.s-sec-head{padding:8px 12px 7px;font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);border-bottom:1px solid var(--bdr);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.hd-right{display:flex;align-items:center;gap:5px}
+.s-clear-x{cursor:pointer;color:var(--tx3);font-size:.8rem;padding:1px 5px;border-radius:3px;border:1px solid transparent;transition:.1s;line-height:1}
+.s-clear-x:hover{color:var(--acc);border-color:var(--acc);background:var(--bg3)}
+#csWrap{padding:8px 10px;position:relative;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.cs-input-row{display:flex;align-items:center;gap:5px}
+#csIn{flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);color:var(--cs);font-family:var(--mono);font-size:.85rem;text-transform:uppercase;padding:5px 10px;outline:none;letter-spacing:.05em}
+#csIn:focus{border-color:var(--cs)}
+#csIn::placeholder{color:var(--tx3);text-transform:none;font-family:var(--sans);letter-spacing:0;font-size:.78rem}
+#csClearBtn{background:none;border:1px solid transparent;border-radius:4px;color:var(--tx3);font-size:.85rem;width:22px;height:22px;display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.1s}
+#csClearBtn:hover{color:var(--acc);border-color:var(--acc);background:var(--bg3)}
+#acList,#acListEntry{position:absolute;background:var(--bg2);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--r) var(--r);z-index:50;max-height:150px;overflow-y:auto;display:none}
+#acList{left:10px;right:10px;top:calc(100% - 3px)}
+#acList div,#acListEntry div{padding:5px 10px;cursor:pointer;font-family:var(--mono);font-size:.8rem;color:var(--cs)}
+#acList div:hover,#acListEntry div:hover{background:var(--bg3)}
+/* Secondary sidebar header (below search) */
+.s-sub-head{padding:7px 12px 6px;font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);border-bottom:1px solid var(--bdr);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+#sCnt{padding:5px 12px 3px;font-size:.72rem;color:var(--tx2);flex-shrink:0}
+#sContent{flex:1;overflow-y:auto}
+.cse{padding:6px 12px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .1s}
+.cse:hover{background:var(--bg3)}
+.cse-d{font-size:.68rem;color:var(--dt);font-family:var(--mono)}
+.cse-t{font-size:.7rem;color:var(--ts);font-family:var(--mono)}
+.cse-n{font-size:.7rem;color:var(--tx2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag-section{padding:7px 10px}
+.tag-item{padding:5px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent;transition:.1s;margin-bottom:2px}
+.tag-item:hover{background:var(--bg3);border-color:var(--bdr)}
+.tag-n{font-size:.82rem;color:var(--tag);font-weight:600}
+.tag-c{font-size:.68rem;color:var(--tx3);background:var(--bg3);border-radius:10px;padding:1px 6px}
+.tag-empty{padding:12px 12px 5px;font-size:.73rem;color:var(--tx3);line-height:1.5}
+
+/* EDITOR */
+#edWrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* NEW ENTRY */
+#ne{display:none;flex-shrink:0;background:var(--bg2);border-bottom:2px solid var(--acc);padding:11px 18px 14px}
+.ne-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:10px}
+#neRow1{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;position:relative}
+#inCS{background:transparent;border:none;border-bottom:2.5px solid var(--bdr);color:var(--cs);font-family:var(--mono);font-size:1.25rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:3px 0;width:180px;outline:none;flex-shrink:0;transition:.15s}
+#inCS:focus{border-bottom-color:var(--cs)}
+#inCS::placeholder{color:var(--tx3);font-weight:400;text-transform:none;font-family:var(--sans);letter-spacing:0;font-size:.85rem}
+#acListEntry{left:0;width:200px;top:calc(100% + 3px)}
+.ne-ts-block{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}
+.ts-lbl{font-size:.73rem;color:var(--tx3);white-space:nowrap}
+.ts-inp{background:var(--bg);border:1px solid var(--bdr);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:.82rem;padding:4px 8px;outline:none;transition:.1s}
+.ts-inp:focus{border-color:var(--acc)}
+#inDate{width:148px}
+#inTime{width:98px;color:var(--ts);font-weight:700}
+#inTime:focus{border-color:var(--ts)}
+#inTimeUTC{width:98px;color:var(--tx2)}
+.ts-mode{display:flex;gap:4px;flex-shrink:0}
+.ts-mode-btn{padding:4px 10px;font-size:.74rem;border-radius:5px;border:1px solid var(--bdr);background:var(--bg);color:var(--tx2);cursor:pointer;font-family:var(--sans);transition:.15s;line-height:1.3}
+.ts-mode-btn.live-active{background:rgba(34,197,94,.15);color:var(--live);border-color:var(--live);font-weight:600}
+.ts-mode-btn.live-active::before{content:'● '}
+.ts-mode-btn.manual-active{background:rgba(99,102,241,.15);color:var(--acc2);border-color:var(--acc2);font-weight:600}
+#inNotes{display:none;background:transparent;border:none;border-bottom:2px solid var(--bdr);color:var(--tx);font-family:var(--sans);font-size:1rem;padding:4px 0;outline:none;resize:none;width:100%;line-height:1.55;min-height:30px;transition:.15s;margin-bottom:4px}
+#inNotes:focus{border-bottom-color:var(--acc)}
+#inNotes::placeholder{color:var(--tx3);font-size:.88rem}
+#neRow3{display:flex;align-items:center;justify-content:space-between}
+#neHint{font-size:.66rem;color:var(--tx3)}
+#logBtn{padding:6px 16px;font-size:.85rem}
+
+/* LOG */
+#log{flex:1;overflow-y:auto;padding:20px 28px 50px}
+.l-title{font-size:1.35rem;font-weight:800;color:var(--tx);margin-bottom:5px}
+.l-meta{font-size:.74rem;color:var(--tx2);padding-bottom:14px;border-bottom:1px solid var(--bdr);margin-bottom:20px;line-height:1.9}
+.l-meta .stn{color:var(--cs);font-family:var(--mono);font-weight:700}
+.dg{margin-bottom:22px}
+.dhdr{font-size:.84rem;font-weight:700;color:var(--dt);padding:5px 0 7px;border-bottom:1px solid var(--bdr);margin-bottom:9px;display:flex;align-items:baseline;gap:8px}
+.dhdr .dc{font-size:.66rem;color:var(--tx3);font-weight:400}
+.le{display:flex;align-items:flex-start;padding:5px 8px;border-radius:7px;margin-bottom:3px;cursor:pointer;transition:background .1s}
+.le:hover{background:var(--bg2)}
+.le.editing{background:var(--bg2);outline:1px solid var(--acc);cursor:default}
+.le.hlE{background:rgba(99,102,241,.07)}
+.le.hlC{background:rgba(99,102,241,.16);outline:1px solid var(--acc2)}
+.e-ts{font-family:var(--mono);font-size:.9rem;color:var(--ts);flex-shrink:0;padding-top:2px;margin-right:8px;font-weight:700;white-space:nowrap}
+.e-dash{color:var(--tx3);flex-shrink:0;margin-right:7px;padding-top:2px;font-size:.85rem}
+.e-cs{font-family:var(--mono);font-weight:700;color:var(--cs);flex-shrink:0;margin-right:10px;padding-top:1px;font-size:1rem;letter-spacing:.04em}
+.e-notes{flex:1;font-size:.94rem;color:var(--tx);line-height:1.6;word-break:break-word;padding-top:1px}
+.e-notes mark{background:var(--hl);border-radius:2px;padding:0 1px;color:inherit}
+.e-notes mark.cur{background:var(--hlc)}
+.e-notes .htag{color:var(--tag);font-weight:600;cursor:pointer}
+.e-notes .htag:hover{text-decoration:underline}
+/* Inline edit */
+.ei-wrap{flex:1;display:flex;flex-direction:column;gap:5px}
+.ei-ts-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px}
+.ei-date{background:transparent;border:none;border-bottom:1px solid var(--dt);color:var(--dt);font-family:var(--mono);font-size:.74rem;outline:none;width:102px;padding:1px 0;color-scheme:dark}
+.ei-time{background:transparent;border:none;border-bottom:1px solid var(--ts);color:var(--ts);font-family:var(--mono);font-size:.78rem;font-weight:700;outline:none;width:82px;padding:1px 0;color-scheme:dark}
+.ei-utc-lbl{font-size:.68rem;color:var(--tx3)}
+.ei-utc{background:transparent;border:none;border-bottom:1px solid var(--tx3);color:var(--tx3);font-family:var(--mono);font-size:.74rem;outline:none;width:78px;padding:1px 0;color-scheme:dark}
+.ei-main{display:flex;align-items:flex-start;gap:8px}
+.ei-cs{background:transparent;border:none;border-bottom:1px solid var(--cs);color:var(--cs);font-family:var(--mono);font-size:.95rem;font-weight:700;outline:none;width:118px;padding:1px 0;flex-shrink:0;text-transform:uppercase}
+.ei-notes{flex:1;background:transparent;border:none;border-bottom:1px solid var(--bdr);color:var(--tx);font-family:var(--sans);font-size:.92rem;outline:none;resize:none;line-height:1.55;padding:1px 0;min-height:24px}
+.ei-notes:focus{border-bottom-color:var(--acc)}
+
+/* MODALS */
+#ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:1000;align-items:center;justify-content:center}
+#ov.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bdr);border-radius:12px;padding:22px 26px;min-width:320px;max-width:480px;width:92vw;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:1rem;margin-bottom:14px;color:var(--tx)}
+.m-lbl{display:block;font-size:.74rem;color:var(--tx2);margin-bottom:4px;margin-top:12px}
+.m-lbl:first-of-type{margin-top:0}
+.m-input{width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);padding:7px 10px;font-size:.84rem;outline:none;font-family:var(--sans);margin-bottom:2px}
+.m-input:focus{border-color:var(--acc)}
+.m-sel{width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);padding:7px 10px;font-size:.84rem;outline:none;font-family:var(--sans)}
+.m-sel:focus{border-color:var(--acc)}
+.radio-grp{display:flex;flex-direction:column;gap:5px;margin-top:5px}
+.radio-item{display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;padding:6px 9px;border-radius:6px;border:1px solid var(--bdr);transition:.1s}
+.radio-item:hover{background:var(--bg3)}
+.radio-item input{accent-color:var(--acc)}
+.m-div{border:none;border-top:1px solid var(--bdr);margin:14px 0}
+.m-contact{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:11px 14px;font-size:.78rem;color:var(--tx2);line-height:1.8}
+.m-contact a{color:var(--acc2);text-decoration:none}
+.m-contact a:hover{text-decoration:underline}
+.mact{display:flex;gap:7px;justify-content:flex-end;margin-top:14px}
+#fList{max-height:220px;overflow-y:auto;margin:8px 0}
+.fi{padding:8px 12px;border-radius:var(--r);cursor:pointer;border:1px solid var(--bdr);margin-bottom:4px;transition:.1s;display:flex;align-items:center;gap:8px}
+.fi:hover{background:var(--bg3);border-color:var(--acc)}
+.fi-n{font-family:var(--mono);font-weight:700;font-size:.85rem}
+.empty{text-align:center;color:var(--tx3);padding:50px 20px;font-size:.88rem;line-height:1.7}
+.empty .ico{font-size:2.5rem;margin-bottom:11px}
+#toast{position:fixed;bottom:13px;right:13px;background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);padding:7px 14px;font-size:.73rem;color:var(--tx2);opacity:0;transition:opacity .22s;z-index:9999;pointer-events:none}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="tb">
+  <span class="t-logo">🔨 Log Hammer</span>
+  <span class="t-sep">·</span>
+  <span class="t-stn" id="tStn">LZ1BEX</span>
+  <span class="t-sep">·</span>
+  <input id="sbIn" type="text" oninput="doSearch()" onkeydown="sbKey(event)">
+  <div class="snav">
+    <button onclick="sStep(-1)">‹</button>
+    <span id="sbCnt">—</span>
+    <button onclick="sStep(1)">›</button>
+  </div>
+  <button class="btn" style="padding:4px 9px;font-size:.75rem" onclick="clearSearch()">✕</button>
+  <button class="btn" id="btnWorkFolder" onclick="openFolder()">📂 Working Folder</button>
+  <button class="btn" id="btnNewFile" style="display:none" onclick="newFileModal()">+ New Log File</button>
+  <button class="iBtn" onclick="openSettings()">⚙</button>
+  <button class="iBtn" id="btnTheme" onclick="toggleTheme()">🌙</button>
+</div>
+
+<div id="mBanner">
+  <span id="mBannerTxt"></span>
+  <button class="btn warn" id="mBannerBtn" onclick="newFileModal()">+ Create New</button>
+  <button class="btn" onclick="dismissBanner()" style="padding:3px 8px;font-size:.72rem">✕</button>
+</div>
+
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <div id="side">
+    <!-- Static top: callsign filter label + input -->
+    <div class="s-sec-head">
+      <span id="csFilterLabel">CALLSIGN FILTER</span>
+    </div>
+    <div id="csWrap">
+      <div class="cs-input-row">
+        <input id="csIn" type="text" oninput="onCsF()" onkeydown="csFKey(event)" autocomplete="off">
+        <button id="csClearBtn" onclick="clearCSFilter()" title="Clear">✕</button>
+      </div>
+      <div id="acList"></div>
+    </div>
+    <!-- Dynamic secondary header: shows # TAGS / tag name / CS name -->
+    <div class="s-sub-head">
+      <span id="sHead"></span>
+      <div class="hd-right" id="sHeadAct"></div>
+    </div>
+    <div id="sCnt"></div>
+    <div id="sContent"></div>
+  </div>
+
+  <!-- EDITOR -->
+  <div id="edWrap">
+    <div id="ne">
+      <div class="ne-lbl" id="neLabel">NEW QSO ENTRY</div>
+      <div id="neRow1">
+        <!-- Callsign left, datetime right — NO onfocus freeze -->
+        <input id="inCS" type="text" maxlength="14"
+          onkeydown="csKey(event)"
+          oninput="onCSEntryInput()">
+        <div id="acListEntry"></div>
+        <div class="ne-ts-block">
+          <span class="ts-lbl" id="tsDateLbl">Date:</span>
+          <input type="date" id="inDate" class="ts-inp" oninput="onLocalChange()">
+          <span class="ts-lbl" id="tsLocalLbl">Local:</span>
+          <input type="time" id="inTime" class="ts-inp" oninput="onLocalChange()">
+          <span class="ts-lbl" id="tsUTCLbl">UTC:</span>
+          <input type="time" id="inTimeUTC" class="ts-inp" oninput="onUTCChange()">
+          <div class="ts-mode">
+            <button class="ts-mode-btn live-active" id="btnLive" onclick="setLiveMode()"></button>
+            <button class="ts-mode-btn" id="btnManual" onclick="setManualMode()"></button>
+          </div>
+        </div>
+      </div>
+      <textarea id="inNotes" onkeydown="notesKey(event)" oninput="ar(this)" rows="1"></textarea>
+      <div id="neRow3">
+        <span id="neHint" class="ne-hint"></span>
+        <button class="btn pri" id="logBtn" onclick="saveEntry()">Log ↵</button>
+      </div>
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="ov" onclick="ovClick(event)">
+  <div class="modal" id="mFL" style="display:none">
+    <h2 id="mFLTitle">Select a Log File</h2>
+    <div id="fList"></div>
+    <div class="mact">
+      <button class="btn" id="mFLCancel" onclick="closeOv()">Cancel</button>
+      <button class="btn pri" id="mFLNew" onclick="newFileModal()">+ New Log File</button>
+    </div>
+  </div>
+  <div class="modal" id="mNF" style="display:none">
+    <h2 id="mNFTitle">Create New Log File</h2>
+    <label class="m-lbl" id="mNFNameLbl">Filename (without .md)</label>
+    <input type="text" id="inFN" class="m-input">
+    <label class="m-lbl" id="mNFTitleLbl">Log Title</label>
+    <input type="text" id="inFT" class="m-input">
+    <div class="mact">
+      <button class="btn" id="mNFCancel" onclick="closeOv()">Cancel</button>
+      <button class="btn pri" id="mNFCreate" onclick="createFile()">Create</button>
+    </div>
+  </div>
+  <div class="modal" id="mSettings" style="display:none">
+    <h2 id="mSetTitle">⚙ Settings</h2>
+    <label class="m-lbl" id="mSetStnLbl">My Station Callsign</label>
+    <input type="text" id="setStation" class="m-input"
+      style="font-family:var(--mono);text-transform:uppercase;font-weight:700;color:var(--cs);letter-spacing:.05em"
+      oninput="this.value=this.value.toUpperCase()">
+    <hr class="m-div">
+    <label class="m-lbl" id="mSetFileLbl">Log File Organization</label>
+    <div class="radio-grp">
+      <label class="radio-item"><input type="radio" name="fileMode" value="monthly"><span id="mSetMonthly">Monthly files</span></label>
+      <label class="radio-item"><input type="radio" name="fileMode" value="yearly"><span id="mSetYearly">Yearly files</span></label>
+    </div>
+    <hr class="m-div">
+    <label class="m-lbl" id="mSetLangLbl">Language</label>
+    <select id="setLang" class="m-sel">
+      <option value="en">English</option>
+      <option value="bg">Български</option>
+    </select>
+    <hr class="m-div">
+    <div class="m-contact" id="mContactBox"></div>
+    <div class="mact">
+      <button class="btn" id="mSetCancel" onclick="closeOv()">Cancel</button>
+      <button class="btn pri" id="mSetSave" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════
+   TRANSLATIONS
+═══════════════════════════ */
+const LANG_DATA={
+  en:{
+    workFolder:'📂 Working Folder',newLogFile:'+ New Log File',
+    searchPH:'Search in log… (Ctrl+F)',csFilter:'CALLSIGN FILTER',
+    csPH:'Type a callsign…',tagsHead:'# TAGS',noTags:'No tags yet. Use #tag in notes.',
+    newEntry:'NEW QSO ENTRY',dateLbl:'Date:',localLbl:'Local:',utcLbl:'UTC:',
+    liveBtn:'Live',manualBtn:'Manual Time',
+    csPHInput:'Callsign…',notesPH:'Notes… (Shift+Enter = new line, Enter = save)',
+    logBtn:'Log ↵',hint:'Tab/Enter after callsign → notes · Enter = save · Esc = cancel',
+    setTitle:'⚙ Settings',setStn:'My Station Callsign',setFile:'Log File Organization',
+    setMonthly:'Monthly files (e.g. 2026-03.md)',setYearly:'Yearly files (e.g. 2026.md)',
+    setLang:'Language',setSave:'Save Settings',cancel:'Cancel',create:'Create',
+    selectFile:'📂 Select a Log File',newFileTitle:'📄 Create New Log File',
+    fnLbl:'Filename (without .md)',ftLbl:'Log Title',
+    openFirst:'Open a folder to load or create a QSO log',
+    noEntries:'No entries yet — log your first QSO above ↑',
+    noContacts:'No contacts found',noTagEntries:'No entries with this tag',
+    periodChg:(m,y)=>`📅 It's now ${m} ${y} — your open log is from an older period.`,
+    createNew:'+ Create New',settingsSaved:'Settings saved ✓',saved:'Saved ✓',
+    loaded:n=>`Loaded: ${n}`,created:n=>`Created: ${n}`,
+    qso:n=>`${n} QSO${n!==1?'s':''}`,qsoWith:'QSOs with',
+    contactBox:'📬 Have an idea or need help?<br>Email: <a href="mailto:qso@lz1bex.eu">qso@lz1bex.eu</a><br>Docs: <a href="https://lz1bex.eu/log-hammer/" target="_blank">lz1bex.eu/log-hammer</a>',
+  },
+  bg:{
+    workFolder:'📂 Работна Папка',newLogFile:'+ Нов Лог Файл',
+    searchPH:'Търсене в лога… (Ctrl+F)',csFilter:'ПОЗИВНА ФИЛТЪР',
+    csPH:'Въведи позивна…',tagsHead:'# ТАГОВЕ',noTags:'Няма тагове. Използвай #таг в бележките.',
+    newEntry:'НОВА QSO ВРЪЗКА',dateLbl:'Дата:',localLbl:'Местно:',utcLbl:'UTC:',
+    liveBtn:'На живо',manualBtn:'Ръчно Време',
+    csPHInput:'Позивна…',notesPH:'Бележки… (Shift+Enter = нов ред, Enter = запази)',
+    logBtn:'Запиши ↵',hint:'Tab/Enter след позивна → бележки · Enter = запази · Esc = отказ',
+    setTitle:'⚙ Настройки',setStn:'Моята Позивна',setFile:'Организация на Файловете',
+    setMonthly:'Месечни файлове (напр. 2026-03.md)',setYearly:'Годишни файлове (напр. 2026.md)',
+    setLang:'Език',setSave:'Запази',cancel:'Отказ',create:'Създай',
+    selectFile:'📂 Избери Лог Файл',newFileTitle:'📄 Нов Лог Файл',
+    fnLbl:'Файлово Име (без .md)',ftLbl:'Заглавие',
+    openFirst:'Отвори папка за да заредиш или създадеш лог',
+    noEntries:'Няма записи — добави първата си QSO връзка ↑',
+    noContacts:'Няма намерени връзки',noTagEntries:'Няма записи с този таг',
+    periodChg:(m,y)=>`📅 Вече е ${m} ${y} — отвореният лог е от по-стар период.`,
+    createNew:'+ Нов Файл',settingsSaved:'Настройките са запазени ✓',saved:'Запазено ✓',
+    loaded:n=>`Заредено: ${n}`,created:n=>`Създадено: ${n}`,
+    qso:n=>`${n} QSO`,qsoWith:'QSO с',
+    contactBox:'📬 Имаш идея или нужда от помощ?<br>Имейл: <a href="mailto:qso@lz1bex.eu">qso@lz1bex.eu</a><br>Документация: <a href="https://lz1bex.eu/log-hammer/" target="_blank">lz1bex.eu/log-hammer</a>',
+  }
+};
+const MONTHS_DATA={
+  en:['January','February','March','April','May','June','July','August','September','October','November','December'],
+  bg:['Януари','Февруари','Март','Април','Май','Юни','Юли','Август','Септември','Октомври','Ноември','Декември']
+};
+const DAYS_DATA={
+  en:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+  bg:['Неделя','Понеделник','Вторник','Сряда','Четвъртък','Петък','Събота']
+};
+
+/* ═══════════════════════════
+   STATE
+═══════════════════════════ */
+let STATION='LZ1BEX',lang='en',fileMode='monthly';
+let dirH=null,fileH=null,fname='',ftitle='';
+let entries=[],allCS=[];
+let dark=true,tsFrozen=false;
+let asTimer=null,tsTimer=null;
+let sm=[],si=0;
+let fCS='',fTag='';
+let pendingFiles=[],bannerDismissed=false;
+
+/* ═══════════════════════════
+   HELPERS
+═══════════════════════════ */
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const p2=n=>String(n).padStart(2,'0');
+const L=(k,...a)=>{const v=(LANG_DATA[lang]||LANG_DATA.en)[k]||(LANG_DATA.en[k]||k);return typeof v==='function'?v(...a):v;};
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* FIX 4: case-insensitive tags — normalize to lowercase in onclick attribute */
+function md2html(s){
+  if(!s)return'';
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/__(.+?)__/g,'<u>$1</u>')
+    .replace(/_(.+?)_/g,'<em>$1</em>')
+    .replace(/(#[\wА-ЯЁа-яёa-zA-Z0-9_]+)/g,(match)=>{
+      const norm=match.toLowerCase();
+      return `<span class="htag" onclick="selectTag('${norm}')">${match}</span>`;
+    })
+    .replace(/\n/g,'<br>');
+}
+
+function ar(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
+function toast(msg,d=2200){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),d);}
+
+/* ═══════════════════════════
+   TIME
+═══════════════════════════ */
+function nowLocalParts(){const d=new Date();return{ld:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,lt:`${p2(d.getHours())}:${p2(d.getMinutes())}`};}
+function localToUTC(ld,lt){const d=new Date(ld+'T'+lt+':00');return{dateUTC:d.toISOString().slice(0,10),timeUTC:d.toISOString().slice(11,16)};}
+function utcToLocal(dU,tU){const d=new Date(dU+'T'+tU+':00Z');return{ld:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,lt:`${p2(d.getHours())}:${p2(d.getMinutes())}`};}
+function fmtFullDate(ld){
+  const[y,m,d]=ld.split('-'),dt=new Date(+y,+m-1,+d);
+  const days=DAYS_DATA[lang]||DAYS_DATA.en,mons=MONTHS_DATA[lang]||MONTHS_DATA.en;
+  return lang==='bg'?`${days[dt.getDay()]}, ${+d} ${mons[+m-1]} ${y}`:`${days[dt.getDay()]}, ${mons[+m-1]} ${+d}, ${y}`;
+}
+
+/* ═══════════════════════════
+   THEME
+═══════════════════════════ */
+function toggleTheme(){dark=!dark;document.documentElement.dataset.theme=dark?'dark':'light';$('btnTheme').textContent=dark?'🌙':'☀️';}
+
+/* ═══════════════════════════
+   LANGUAGE
+═══════════════════════════ */
+function applyLang(){
+  document.documentElement.lang=lang==='bg'?'bg':'en';
+  const tx={
+    btnWorkFolder:L('workFolder'),btnNewFile:L('newLogFile'),
+    neLabel:L('newEntry'),tsDateLbl:L('dateLbl'),tsLocalLbl:L('localLbl'),tsUTCLbl:L('utcLbl'),
+    logBtn:L('logBtn'),neHint:L('hint'),
+    btnLive:L('liveBtn'),btnManual:L('manualBtn'),
+    csFilterLabel:L('csFilter'),              // ← static top sidebar label
+    mFLTitle:L('selectFile'),mFLNew:L('newLogFile'),mFLCancel:L('cancel'),
+    mNFTitle:L('newFileTitle'),mNFNameLbl:L('fnLbl'),mNFTitleLbl:L('ftLbl'),
+    mNFCreate:L('create'),mNFCancel:L('cancel'),
+    mSetTitle:L('setTitle'),mSetStnLbl:L('setStn'),mSetFileLbl:L('setFile'),
+    mSetMonthly:L('setMonthly'),mSetYearly:L('setYearly'),mSetLangLbl:L('setLang'),
+    mSetSave:L('setSave'),mSetCancel:L('cancel'),mBannerBtn:L('createNew'),
+  };
+  Object.entries(tx).forEach(([id,txt])=>{const e=$(id);if(e)e.textContent=txt;});
+  const ph={sbIn:L('searchPH'),csIn:L('csPH'),inCS:L('csPHInput'),inNotes:L('notesPH')};
+  Object.entries(ph).forEach(([id,p])=>{const e=$(id);if(e)e.placeholder=p;});
+  $('mContactBox').innerHTML=L('contactBox');
+  renderLog(); renderSidebar();
+}
+
+/* ═══════════════════════════
+   MODALS
+═══════════════════════════ */
+function showModal(id){$('ov').classList.add('open');['mFL','mNF','mSettings'].forEach(n=>$(n).style.display='none');$(id).style.display='block';}
+function closeOv(){$('ov').classList.remove('open');}
+function ovClick(e){if(e.target===$('ov'))closeOv();}
+
+/* ═══════════════════════════
+   SETTINGS
+═══════════════════════════ */
+function openSettings(){
+  $('setStation').value=STATION;$('setLang').value=lang;
+  document.querySelectorAll('input[name="fileMode"]').forEach(r=>r.checked=r.value===fileMode);
+  showModal('mSettings');
+}
+async function saveSettings(){
+  STATION=($('setStation').value.trim().toUpperCase()||'LZ1BEX');
+  fileMode=document.querySelector('input[name="fileMode"]:checked')?.value||'monthly';
+  lang=$('setLang').value;
+  $('tStn').textContent=STATION;
+  applyLang(); await saveSettingsFile(); closeOv(); toast(L('settingsSaved'));
+}
+async function saveSettingsFile(){
+  if(!dirH)return;
+  try{const fh=await dirH.getFileHandle('loghammer-settings.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify({station:STATION,fileMode,language:lang},null,2));await w.close();}catch(e){}
+}
+async function loadSettingsFile(){
+  if(!dirH)return;
+  try{
+    const fh=await dirH.getFileHandle('loghammer-settings.json');
+    const s=JSON.parse(await(await fh.getFile()).text());
+    if(s.station)STATION=s.station.toUpperCase();
+    if(['monthly','yearly'].includes(s.fileMode))fileMode=s.fileMode;
+    if(['en','bg'].includes(s.language))lang=s.language;
+    $('tStn').textContent=STATION; applyLang();
+  }catch(e){}
+}
+
+/* ═══════════════════════════
+   FILE SYSTEM
+═══════════════════════════ */
+async function openFolder(){
+  try{
+    dirH=await window.showDirectoryPicker({mode:'readwrite'});
+    await loadSettingsFile();
+    const files=[];
+    for await(const[name,handle]of dirH.entries()){if(handle.kind==='file'&&name.endsWith('.md'))files.push({name,handle});}
+    files.sort((a,b)=>b.name.localeCompare(a.name));
+    if(!files.length){newFileModal();return;}
+    pendingFiles=files;
+    $('fList').innerHTML=files.map(f=>`<div class="fi" onclick="pickFile('${esc(f.name)}')"><span>📄</span><div><div class="fi-n">${esc(f.name)}</div></div></div>`).join('');
+    showModal('mFL');
+  }catch(e){if(e.name!=='AbortError')toast('Could not open folder');}
+}
+function pickFile(name){const f=pendingFiles.find(x=>x.name===name);if(!f)return;closeOv();loadFile(f.handle,f.name);}
+function newFileModal(){
+  closeOv();const now=new Date(),y=now.getFullYear(),m=p2(now.getMonth()+1);
+  const mons=MONTHS_DATA[lang]||MONTHS_DATA.en;
+  $('inFN').value=fileMode==='monthly'?`${y}-${m}`:`${y}`;
+  $('inFT').value=fileMode==='monthly'?`${mons[now.getMonth()]} ${y} QSO Log`:`${y} QSO Log`;
+  showModal('mNF'); setTimeout(()=>$('inFN').focus(),80);
+}
+async function createFile(){
+  let n=$('inFN').value.trim();const t=$('inFT').value.trim();
+  if(!n)return;if(!n.endsWith('.md'))n+='.md';if(!dirH){toast('No folder open');return;}
+  try{fileH=await dirH.getFileHandle(n,{create:true});fname=n.replace('.md','');ftitle=t||fname;entries=[];await doSave();closeOv();activateEditor();toast(L('created',n));}
+  catch(e){toast('Error creating file');}
+}
+async function loadFile(handle,name){
+  fileH=handle;fname=name.replace('.md','');
+  try{const{title,data}=parseMD(await(await handle.getFile()).text());ftitle=title||fname;entries=data;activateEditor();toast(L('loaded',name));}
+  catch(e){toast('Error reading file');}
+}
+async function doSave(){
+  if(!fileH)return;
+  try{const w=await fileH.createWritable();await w.write(buildMD());await w.close();}catch(e){}
+}
+
+/* ═══════════════════════════
+   MARKDOWN
+═══════════════════════════ */
+function parseMD(text){
+  const lines=text.split('\n');let title=fname,curD='';const data=[];
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(l.startsWith('# ')){title=l.slice(2).trim();continue;}
+    if(l.startsWith('## ')){curD=l.slice(3).trim();continue;}
+    const m=l.match(/^- \[(\d{2}:\d{2}) UTC\] - ([\w/А-ЯЁа-яёa-zA-Z0-9_]+)(?: (.*))?$/);
+    if(m){let notes=m[3]||'';while(i+1<lines.length&&/^  /.test(lines[i+1])){i++;notes+='\n'+lines[i].replace(/^  /,'');}data.push({id:uid(),dateUTC:curD,timeUTC:m[1],callsign:m[2],notes:notes.trim()});}
+  }
+  return{title,data};
+}
+function buildMD(){
+  const grp={};entries.forEach(e=>{if(!grp[e.dateUTC])grp[e.dateUTC]=[];grp[e.dateUTC].push(e);});
+  const dates=Object.keys(grp).sort();const period=dates.length?`${dates[0]} - ${dates[dates.length-1]}`:'—';
+  let md=`# ${ftitle}\n\nStation: ${STATION}\nPeriod: ${period} | Log entries: ${entries.length}\n\n`;
+  dates.slice().reverse().forEach(date=>{
+    md+=`## ${date}\n\n`;
+    grp[date].slice().sort((a,b)=>b.timeUTC.localeCompare(a.timeUTC)).forEach(e=>{
+      const nl=(e.notes||'').split('\n');md+=`- [${e.timeUTC} UTC] - ${e.callsign}`;if(nl[0])md+=' '+nl[0];md+='\n';nl.slice(1).forEach(l=>md+='  '+l+'\n');
+    });md+='\n';
+  });return md;
+}
+
+/* ═══════════════════════════
+   ACTIVATE
+═══════════════════════════ */
+function activateEditor(){
+  allCS=[...new Set(entries.map(e=>e.callsign))].sort();
+  $('ne').style.display='block';$('btnNewFile').style.display='inline-block';
+  applyLang();renderLog();renderSidebar();checkPeriodChange();
+  if(asTimer)clearInterval(asTimer);asTimer=setInterval(doSave,5000);
+  if(tsTimer)clearInterval(tsTimer);
+  updateTSInputs();
+  tsTimer=setInterval(()=>{if(!tsFrozen)updateTSInputs();checkPeriodChange();},10000);
+  $('inCS').focus();
+}
+function checkPeriodChange(){
+  if(!fname||bannerDismissed)return;
+  const now=new Date(),cur=fileMode==='monthly'?`${now.getFullYear()}-${p2(now.getMonth()+1)}`:`${now.getFullYear()}`;
+  const filePer=fileMode==='monthly'?fname:fname.slice(0,4);
+  if(filePer<cur){const mons=MONTHS_DATA[lang]||MONTHS_DATA.en;$('mBannerTxt').textContent=L('periodChg',mons[now.getMonth()],now.getFullYear());$('mBanner').classList.add('show');}
+}
+function dismissBanner(){bannerDismissed=true;$('mBanner').classList.remove('show');}
+
+/* ═══════════════════════════
+   TIMESTAMP — FIX 1
+   Live is default; only switches to Manual
+   when user explicitly edits time fields
+   or clicks Manual button.
+   Callsign focus no longer triggers freeze.
+═══════════════════════════ */
+function updateTSInputs(){
+  if(tsFrozen)return;
+  const{ld,lt}=nowLocalParts();
+  $('inDate').value=ld;$('inTime').value=lt;
+  $('inTimeUTC').value=localToUTC(ld,lt).timeUTC;
+}
+function setLiveMode(){
+  tsFrozen=false;
+  $('btnLive').className='ts-mode-btn live-active';
+  $('btnManual').className='ts-mode-btn';
+  updateTSInputs();
+}
+function setManualMode(){
+  tsFrozen=true;
+  $('btnLive').className='ts-mode-btn';
+  $('btnManual').className='ts-mode-btn manual-active';
+}
+function onLocalChange(){
+  setManualMode();
+  const d=$('inDate').value,t=$('inTime').value;
+  if(d&&t)$('inTimeUTC').value=localToUTC(d,t).timeUTC;
+}
+function onUTCChange(){
+  setManualMode();
+  const dStr=$('inDate').value,tUTC=$('inTimeUTC').value;
+  if(dStr&&tUTC){const d=new Date(dStr+'T'+tUTC+':00Z');$('inDate').value=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;$('inTime').value=`${p2(d.getHours())}:${p2(d.getMinutes())}`;}
+}
+
+/* ═══════════════════════════
+   ENTRY CALLSIGN AUTOCOMPLETE
+═══════════════════════════ */
+function onCSEntryInput(){
+  const v=$('inCS').value.toUpperCase();$('inCS').value=v;
+  const ac=$('acListEntry');
+  if(!v||!allCS.length){ac.style.display='none';return;}
+  const hits=allCS.filter(c=>c.startsWith(v)&&c!==v);
+  if(!hits.length){ac.style.display='none';return;}
+  ac.innerHTML=hits.slice(0,8).map(c=>`<div onclick="pickCSEntry('${c}')">${c}</div>`).join('');
+  ac.style.display='block';
+}
+function pickCSEntry(cs){$('inCS').value=cs;$('acListEntry').style.display='none';const n=$('inNotes');n.style.display='block';n.focus();ar(n);}
+
+/* ═══════════════════════════
+   ENTRY INPUT
+═══════════════════════════ */
+function csKey(e){
+  if(e.key==='Tab'||e.key==='Enter'){
+    e.preventDefault();if(!$('inCS').value.trim())return;
+    $('acListEntry').style.display='none';const n=$('inNotes');n.style.display='block';n.focus();ar(n);
+  }
+  if(e.key==='Escape')resetInput();
+}
+function notesKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();saveEntry();return;}
+  if(e.key==='Escape')resetInput();
+}
+function saveEntry(){
+  const cs=$('inCS').value.trim().toUpperCase();if(!cs)return;
+  const notes=$('inNotes').value.trim();
+  const{dateUTC,timeUTC}=localToUTC($('inDate').value,$('inTime').value);
+  entries.push({id:uid(),dateUTC,timeUTC,callsign:cs,notes});
+  allCS=[...new Set(entries.map(e=>e.callsign))].sort();
+  resetInput();renderLog();renderSidebar();$('log').scrollTop=0;
+}
+function resetInput(){
+  $('inCS').value='';$('acListEntry').style.display='none';
+  const n=$('inNotes');n.value='';n.style.display='none';n.style.height='';
+  setLiveMode();$('inCS').focus();  // ← always back to Live after save
+}
+
+/* ═══════════════════════════
+   RENDER LOG
+═══════════════════════════ */
+function renderLog(){
+  const log=$('log');
+  if(!fileH){
+    log.innerHTML=`<div class="empty"><div class="ico">🔨</div><div>${L('openFirst')}</div><div style="margin-top:14px"><button class="btn pri" onclick="openFolder()">${L('workFolder')}</button></div></div>`;return;
+  }
+  if(!entries.length){
+    log.innerHTML=`<div class="l-title">${esc(ftitle)}</div><div class="l-meta">Station: <span class="stn">${STATION}</span></div><div class="empty" style="padding-top:22px">${L('noEntries')}</div>`;return;
+  }
+  const grp={};entries.forEach(e=>{const{ld}=utcToLocal(e.dateUTC,e.timeUTC);if(!grp[ld])grp[ld]=[];grp[ld].push(e);});
+  const allU=entries.map(e=>e.dateUTC).sort();
+  const period=`${allU[0]} — ${allU[allU.length-1]}`;
+  const groups=Object.keys(grp).sort((a,b)=>b.localeCompare(a));
+  let html=`<div class="l-title">${esc(ftitle)}</div><div class="l-meta">Station: <span class="stn">${STATION}</span>&nbsp;·&nbsp; Period: ${period}&nbsp;·&nbsp; Log entries: <strong>${entries.length}</strong></div>`;
+  groups.forEach(date=>{
+    const day=grp[date].slice().sort((a,b)=>b.timeUTC.localeCompare(a.timeUTC));
+    html+=`<div class="dg"><div class="dhdr">${fmtFullDate(date)}<span class="dc">${L('qso',day.length)}</span></div>`;
+    day.forEach(e=>{
+      const{lt}=utcToLocal(e.dateUTC,e.timeUTC);
+      html+=`<div class="le" data-id="${e.id}" onclick="editEntry('${e.id}')">
+        <span class="e-ts">${lt}</span><span class="e-dash">—</span>
+        <span class="e-cs">${esc(e.callsign)}</span>
+        <span class="e-notes">${md2html(e.notes)}</span>
+      </div>`;
+    });html+=`</div>`;
+  });
+  $('log').innerHTML=html;
+}
+
+/* ═══════════════════════════
+   INLINE EDIT — FIX 2
+   stopPropagation on ei-wrap prevents
+   clicks inside the editing row from
+   triggering commitEdit prematurely.
+═══════════════════════════ */
+function editEntry(id){
+  const existing=document.querySelector('.le.editing');
+  if(existing){
+    // If same row clicked again, do nothing — let user continue editing
+    if(existing.dataset.id===id)return;
+    commitEdit(existing);
+  }
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const row=document.querySelector(`.le[data-id="${id}"]`);if(!row)return;
+  row.classList.add('editing');
+  const{ld,lt}=utcToLocal(e.dateUTC,e.timeUTC);
+  row.innerHTML=`
+    <div class="ei-wrap" onclick="event.stopPropagation()">
+      <div class="ei-ts-row">
+        <input class="ei-date" type="date" value="${ld}">
+        <input class="ei-time" type="time" value="${lt}">
+        <span class="ei-utc-lbl">UTC:</span>
+        <input class="ei-utc" type="time" value="${e.timeUTC}">
+      </div>
+      <div class="ei-main">
+        <input class="ei-cs" value="${esc(e.callsign)}" maxlength="14" title="Callsign">
+        <textarea class="ei-notes">${esc(e.notes)}</textarea>
+      </div>
+    </div>`;
+  const dt=row.querySelector('.ei-date'),tm=row.querySelector('.ei-time');
+  const utc=row.querySelector('.ei-utc'),cs=row.querySelector('.ei-cs'),nt=row.querySelector('.ei-notes');
+  ar(nt);nt.addEventListener('input',()=>ar(nt));
+  cs.addEventListener('input',()=>cs.value=cs.value.toUpperCase());
+  dt.addEventListener('input',()=>{if(dt.value&&tm.value)utc.value=localToUTC(dt.value,tm.value).timeUTC;});
+  tm.addEventListener('input',()=>{if(dt.value&&tm.value)utc.value=localToUTC(dt.value,tm.value).timeUTC;});
+  utc.addEventListener('input',()=>{if(utc.value){const d=new Date((dt.value||e.dateUTC)+'T'+utc.value+':00Z');dt.value=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;tm.value=`${p2(d.getHours())}:${p2(d.getMinutes())}`;}});
+  function commit(){
+    if(cs.value.trim())e.callsign=cs.value.trim().toUpperCase();
+    e.notes=nt.value.trim();
+    if(dt.value&&tm.value){const{dateUTC,timeUTC}=localToUTC(dt.value,tm.value);e.dateUTC=dateUTC;e.timeUTC=timeUTC;}
+    allCS=[...new Set(entries.map(x=>x.callsign))].sort();
+    renderLog();renderSidebar();
+  }
+  cs.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();renderLog();}if(ev.key==='Tab'){ev.preventDefault();nt.focus();}if(ev.key==='Enter'){ev.preventDefault();commit();}});
+  nt.addEventListener('keydown',ev=>{
+    if(ev.key==='Escape'){ev.preventDefault();renderLog();return;}
+    if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();commit();return;}
+    if((ev.ctrlKey||ev.metaKey)&&ev.key==='s'){ev.preventDefault();commit();}
+  });
+  nt.addEventListener('blur',()=>setTimeout(()=>{if(!row.contains(document.activeElement))commit();},200));
+  cs.focus(); // focus callsign first so it's immediately editable
+}
+function commitEdit(row){
+  const id=row.dataset.id,e=entries.find(x=>x.id===id);if(!e)return;
+  const cs=row.querySelector('.ei-cs'),nt=row.querySelector('.ei-notes');
+  const dt=row.querySelector('.ei-date'),tm=row.querySelector('.ei-time');
+  if(!cs||!nt)return;
+  if(cs.value.trim())e.callsign=cs.value.trim().toUpperCase();
+  e.notes=nt.value.trim();
+  if(dt&&tm&&dt.value&&tm.value){const{dateUTC,timeUTC}=localToUTC(dt.value,tm.value);e.dateUTC=dateUTC;e.timeUTC=timeUTC;}
+  allCS=[...new Set(entries.map(x=>x.callsign))].sort();
+  renderLog();renderSidebar();
+}
+
+/* ═══════════════════════════
+   TAGS — FIX 4: case-insensitive
+   parseTags always returns lowercase
+═══════════════════════════ */
+function parseTags(txt){
+  return((txt||'').match(/#[\wА-ЯЁа-яёa-zA-Z0-9_]+/g)||[]).map(t=>t.toLowerCase());
+}
+function getAllTags(){
+  const c={};
+  entries.forEach(e=>parseTags(e.notes).forEach(t=>{c[t]=(c[t]||0)+1;}));
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+}
+function selectTag(tag){
+  // tag is already lowercase from md2html / parseTags
+  fTag=tag;fCS='';$('csIn').value='';$('csClearBtn').style.display='none';$('acList').style.display='none';renderSidebar();
+}
+function clearTagFilter(){fTag='';renderSidebar();}
+
+/* ═══════════════════════════
+   SIDEBAR — FIX 3
+   "CALLSIGN FILTER" label is always at top.
+   Dynamic sHead (# TAGS / tag / cs) is below search.
+═══════════════════════════ */
+function renderSidebar(){
+  const head=$('sHead'),act=$('sHeadAct'),cnt=$('sCnt'),sc=$('sContent');
+  $('csClearBtn').style.display=(fCS||$('csIn').value.trim())?'flex':'none';
+
+  if(fCS){
+    // Secondary header shows the active callsign
+    head.textContent=fCS; act.innerHTML='';
+    const hits=entries.filter(e=>e.callsign===fCS).sort((a,b)=>(b.dateUTC+b.timeUTC).localeCompare(a.dateUTC+a.timeUTC));
+    cnt.innerHTML=`<strong>${hits.length}</strong> ${L('qsoWith')} <span style="color:var(--cs);font-family:var(--mono);font-weight:700">${fCS}</span>`;
+    sc.innerHTML=hits.length
+      ?hits.map(e=>`<div class="cse" onclick="hlEntry('${e.id}')">
+          <div class="cse-d">${utcToLocal(e.dateUTC,e.timeUTC).ld}</div>
+          <div class="cse-t">${utcToLocal(e.dateUTC,e.timeUTC).lt}</div>
+          ${e.notes?`<div class="cse-n">${esc(e.notes.split('\n')[0])}</div>`:''}
+        </div>`).join('')
+      :`<div class="tag-empty">${L('noContacts')}</div>`;
+  } else if(fTag){
+    // Secondary header shows the active tag with clear button
+    head.textContent=fTag;
+    act.innerHTML=`<span class="s-clear-x" onclick="clearTagFilter()">✕</span>`;
+    const hits=entries.filter(e=>parseTags(e.notes).includes(fTag)).sort((a,b)=>(b.dateUTC+b.timeUTC).localeCompare(a.dateUTC+a.timeUTC));
+    cnt.innerHTML=`<strong>${hits.length}</strong> ${L('qsoWith')} <span style="color:var(--tag);font-weight:700">${fTag}</span>`;
+    sc.innerHTML=hits.length
+      ?hits.map(e=>`<div class="cse" onclick="hlEntry('${e.id}')">
+          <div class="cse-d">${utcToLocal(e.dateUTC,e.timeUTC).ld}</div>
+          <div class="cse-t">${utcToLocal(e.dateUTC,e.timeUTC).lt}</div>
+          <div class="cse-n">${esc(e.callsign)} ${esc(e.notes.split('\n')[0])}</div>
+        </div>`).join('')
+      :`<div class="tag-empty">${L('noTagEntries')}</div>`;
+  } else {
+    // Default: show tag list below the search input
+    head.textContent=L('tagsHead'); act.innerHTML=''; cnt.innerHTML='';
+    const tags=getAllTags();
+    sc.innerHTML=tags.length
+      ?`<div class="tag-section">${tags.map(([t,c])=>`
+          <div class="tag-item" onclick="selectTag('${esc(t)}')">
+            <span class="tag-n">${esc(t)}</span>
+            <span class="tag-c">${c}</span>
+          </div>`).join('')}</div>`
+      :`<div class="tag-empty">${L('noTags')}</div>`;
+  }
+}
+
+/* ═══════════════════════════
+   CALLSIGN FILTER (SIDEBAR)
+═══════════════════════════ */
+function onCsF(){
+  const v=$('csIn').value.toUpperCase();$('csIn').value=v;fCS=v.trim();
+  $('csClearBtn').style.display=v?'flex':'none';
+  const ac=$('acList');
+  if(!v){ac.style.display='none';fCS='';renderSidebar();return;}
+  const hits=allCS.filter(c=>c.startsWith(v)&&c!==v);
+  ac.innerHTML=hits.length?hits.slice(0,8).map(c=>`<div onclick="pickCS('${c}')">${c}</div>`).join(''):'';
+  ac.style.display=hits.length?'block':'none';
+  renderSidebar();
+}
+function csFKey(e){
+  if(e.key==='Escape')clearCSFilter();
+  if(e.key==='Enter'){$('acList').style.display='none';renderSidebar();}
+}
+function pickCS(cs){$('csIn').value=cs;$('acList').style.display='none';fCS=cs;$('csClearBtn').style.display='flex';renderSidebar();}
+function clearCSFilter(){$('csIn').value='';$('acList').style.display='none';fCS='';$('csClearBtn').style.display='none';renderSidebar();}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#csWrap'))$('acList').style.display='none';
+  if(!e.target.closest('#neRow1'))$('acListEntry').style.display='none';
+});
+
+/* ═══════════════════════════
+   SEARCH
+═══════════════════════════ */
+function doSearch(){
+  const q=$('sbIn').value.trim();renderLog();
+  if(!q){$('sbCnt').textContent='—';sm=[];return;}
+  const lq=q.toLowerCase(),re=new RegExp(`(${escRe(q)})`,'gi');sm=[];
+  document.querySelectorAll('.le').forEach(row=>{
+    if(!row.textContent.toLowerCase().includes(lq))return;
+    sm.push(row.dataset.id);row.classList.add('hlE');
+    ['.e-notes','.e-cs'].forEach(sel=>{const t=row.querySelector(sel);if(t)t.innerHTML=t.innerHTML.replace(re,'<mark>$1</mark>');});
+  });si=0;jumpTo(0);
+}
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function jumpTo(i){
+  document.querySelectorAll('.le.hlC').forEach(e=>e.classList.remove('hlC'));
+  document.querySelectorAll('.le mark.cur').forEach(m=>m.classList.remove('cur'));
+  if(!sm.length){$('sbCnt').textContent='0';return;}
+  i=((i%sm.length)+sm.length)%sm.length;si=i;
+  const row=document.querySelector(`.le[data-id="${sm[i]}"]`);
+  if(row){row.classList.add('hlC');row.querySelectorAll('mark').forEach(m=>m.classList.add('cur'));row.scrollIntoView({behavior:'smooth',block:'center'});}
+  $('sbCnt').textContent=`${i+1} / ${sm.length}`;
+}
+function sStep(d){if(sm.length)jumpTo(si+d);}
+function sbKey(e){if(e.key==='Enter')sStep(1);if(e.key==='Escape')clearSearch();}
+function clearSearch(){$('sbIn').value='';sm=[];$('sbCnt').textContent='—';renderLog();}
+function hlEntry(id){
+  const row=document.querySelector(`.le[data-id="${id}"]`);
+  if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.style.outline='2px solid var(--acc)';setTimeout(()=>row.style.outline='',1600);}
+}
+
+/* ═══════════════════════════
+   KEYBOARD
+═══════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();$('sbIn').focus();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();doSave();toast(L('saved'));}
+});
+
+/* ═══════════════════════════
+   INIT
+═══════════════════════════ */
+applyLang();
+updateTSInputs();
+setLiveMode();
+</script>
+</body>
+</html>
